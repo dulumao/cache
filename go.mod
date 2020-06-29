@@ -1,4 +1,4 @@
-module cache
+module github.com/dulumao/cache
 
 go 1.14
 
