@@ -4,26 +4,28 @@ import (
 	"errors"
 	"sort"
 	"sync"
-
-	"github.com/muesli/cache2go"
 )
 
 type Index struct {
+	c    ICache
 	keys []string
 	l    sync.Mutex
 }
 
-func NewCacheIndex() *Index {
+func NewIndex(c ICache) *Index {
 	return &Index{
 		keys: make([]string, 0),
+		c:    c,
 	}
 }
 
-func (i *Index) Add(key string) *Index {
+func (i *Index) Add(keys ...string) *Index {
 	i.l.Lock()
 	defer i.l.Unlock()
 
-	i.keys = append(i.keys, key)
+	for _, k := range keys {
+		i.keys = append(i.keys, k)
+	}
 
 	return i
 }
@@ -119,12 +121,12 @@ func (i *Index) Replace(key, newKey string) error {
 	return errors.New("key 不存在")
 }
 
-func (i *Index) GetCacheByKeys(keys ...string) ([]*cache2go.CacheItem, []string) {
-	var caches []*cache2go.CacheItem
+func (i *Index) GetCacheByKeys(keys ...string) ([]interface{}, []string) {
+	var caches []interface{}
 	var notFoundKeys []string
 
 	for _, k := range keys {
-		if c, err := Value(k); err == nil {
+		if c, err := i.c.Get(k); err == nil {
 			caches = append(caches, c)
 		} else {
 			notFoundKeys = append(notFoundKeys, k)
@@ -134,6 +136,6 @@ func (i *Index) GetCacheByKeys(keys ...string) ([]*cache2go.CacheItem, []string)
 	return caches, notFoundKeys
 }
 
-func (i *Index) GetCaches() ([]*cache2go.CacheItem, []string) {
+func (i *Index) GetCaches() ([]interface{}, []string) {
 	return i.GetCacheByKeys(i.keys...)
 }

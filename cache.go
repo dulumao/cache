@@ -1,210 +1,77 @@
 package cache
 
 import (
-	"encoding/gob"
-	"fmt"
-	"io"
-	"log"
-	"os"
-	"sync"
+	"errors"
 	"time"
 
-	"github.com/muesli/cache2go"
+	"github.com/dulumao/cache/drivers"
+	"github.com/dulumao/cache/drivers/boltdb"
+	"github.com/dulumao/cache/drivers/cache2go"
+	"github.com/dulumao/cache/drivers/redis"
+	"github.com/dulumao/cache/options"
 )
 
-// 格式 func_name_op _ param: value
-// getPublicChat_getstatus|username:1,id:2
-// getADV_homepage|started_at:12345678,ended_at:1234567
-// getADV_homepage
-
-var single *cache2go.CacheTable
-var once sync.Once
-
-type cache struct {
-	Items []item
-}
-
-type item struct {
-	Key      interface{}
-	Data     interface{}
-	LifeSpan time.Duration
-}
-
-func New(names ...string) *cache2go.CacheTable {
-	var name = "cache"
-
-	if len(names) > 0 {
-		name = names[0]
-	}
-
-	return cache2go.Cache(name)
-}
-
-func Instance() *cache2go.CacheTable {
-	once.Do(func() {
-		single = New()
-	})
-
-	return single
-}
-
-func Close() {
-	Instance().Flush()
-}
+const (
+	// 永远存在
+	Forever = 0
+	// 1 分钟
+	OneMinutes = 60 * time.Second
+	// 2 分钟
+	TwoMinutes = 120 * time.Second
+	// 3 分钟
+	ThreeMinutes = 180 * time.Second
+	// 5 分钟
+	FiveMinutes = 300 * time.Second
+	// 10 分钟
+	TenMinutes = 600 * time.Second
+	// 半小时
+	HalfHour = 1800 * time.Second
+	// 1 小时
+	OneHour = 3600 * time.Second
+	// 2 小时
+	TwoHour = 7200 * time.Second
+	// 3 小时
+	ThreeHour = 10800 * time.Second
+	// 12 小时(半天)
+	HalfDay = 43200 * time.Second
+	// 24 小时(1 天)
+	OneDay = 86400 * time.Second
+	// 2 天
+	TwoDay = 172800 * time.Second
+	// 3 天
+	ThreeDay = 259200 * time.Second
+	// 7 天(一周)
+	OneWeek = 604800 * time.Second
+)
 
 type ICache interface {
-	UnmarshalCache(interface{})
-	MarshalCache() interface{}
+	Get(key string) (data interface{}, err error)
+	MustGet(key string) (data interface{})
+	Set(key string, data interface{}, ttl time.Duration) error
+	NotFoundAdd(key string, data interface{}, ttl time.Duration) error
+	Exists(key string) bool
+	Delete(key string) bool
+	Clear() error
+	Count() int
+	Close() error
 }
 
-func SetLogger(logger *log.Logger) {
-	Instance().SetLogger(logger)
-}
-
-func UnmarshalCache(key interface{}, cache ICache, args ...interface{}) error {
-	data, err := Instance().Value(key, args...)
-
-	if err != nil {
-		return err
+func Use(driver string, ops *options.Options) (ICache,error) {
+	if ops.Name == "" {
+		ops.Name = "cache"
 	}
 
-	cache.UnmarshalCache(data.Data())
-
-	return nil
-}
-
-func MarshalCache(key interface{}, cache ICache, lifeSpan ...time.Duration) *cache2go.CacheItem {
-	if len(lifeSpan) > 0 {
-		return Instance().Add(key, lifeSpan[0], cache.MarshalCache())
+	if driver == drivers.DriverCache2go {
+		return cache2go.New(ops)
 	}
 
-	return Instance().Add(key, 0, cache.MarshalCache())
-}
-
-func MarshalCacheIfNotFound(key interface{}, cache ICache, lifeSpan ...time.Duration) bool {
-	if len(lifeSpan) > 0 {
-		return Instance().NotFoundAdd(key, lifeSpan[0], cache.MarshalCache())
+	if driver == drivers.DriverRedis {
+		return redis.New(ops)
 	}
 
-	return Instance().NotFoundAdd(key, 0, cache.MarshalCache())
-}
-
-func Add(key interface{}, lifeSpan time.Duration, data interface{}) *cache2go.CacheItem {
-	return Instance().Add(key, lifeSpan, data)
-}
-
-func NotFoundAdd(key interface{}, lifeSpan time.Duration, data interface{}) bool {
-	return Instance().NotFoundAdd(key, lifeSpan, data)
-}
-
-func Value(key interface{}, args ...interface{}) (*cache2go.CacheItem, error) {
-	return Instance().Value(key, args...)
-}
-
-func MustValue(key interface{}, args ...interface{}) *cache2go.CacheItem {
-	var item *cache2go.CacheItem
-	var err error
-
-	if item, err = Value(key, args...); err != nil {
-		panic(err)
+	if driver == drivers.DriverBoltdb {
+		return boltdb.New(ops)
 	}
 
-	return item
-}
-
-func Foreach(trans func(key interface{}, item *cache2go.CacheItem)) {
-	Instance().Foreach(trans)
-}
-
-func Count() int {
-	return Instance().Count()
-}
-
-func Exists(key interface{}) bool {
-	return Instance().Exists(key)
-}
-
-func Delete(key interface{}) (*cache2go.CacheItem, error) {
-	return Instance().Delete(key)
-}
-
-func Save(w io.Writer) (err error) {
-	enc := gob.NewEncoder(w)
-
-	defer func() {
-		if x := recover(); x != nil {
-			err = fmt.Errorf("Error registering item types with Gob library")
-		}
-	}()
-
-	var cache cache
-	var items []item
-
-	gob.Register(&cache)
-
-	Instance().Foreach(func(key interface{}, cacheItem *cache2go.CacheItem) {
-		items = append(items, item{
-			Key:  cacheItem.Key(),
-			Data: cacheItem.Data(),
-		})
-	})
-
-	cache.Items = items
-
-	err = enc.Encode(&cache)
-
-	return
-}
-
-func SaveFile(filename string) error {
-	fp, err := os.Create(filename)
-
-	if err != nil {
-		return err
-	}
-
-	err = Save(fp)
-
-	if err != nil {
-		fp.Close()
-
-		return err
-	}
-
-	return fp.Close()
-}
-
-func Load(r io.Reader) error {
-	var cache cache
-	dec := gob.NewDecoder(r)
-
-	err := dec.Decode(&cache)
-
-	if err == nil {
-		for _, i := range cache.Items {
-			if !Instance().Exists(i.Key) {
-				Instance().Add(i.Key, i.LifeSpan, i.Data)
-			}
-		}
-	}
-
-	return err
-}
-
-func LoadFile(filename string) error {
-	fp, err := os.Open(filename)
-
-	if err != nil {
-		return err
-	}
-
-	err = Load(fp)
-
-	if err != nil {
-		fp.Close()
-
-		return err
-	}
-
-	return fp.Close()
+	return nil,errors.New("driver error")
 }

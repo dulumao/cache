@@ -4,15 +4,14 @@ import (
 	"errors"
 	"sync"
 	"time"
-
-	"github.com/muesli/cache2go"
 )
 
 type Table struct {
-	Name     string
-	Datas    []*TableData
-	LifeSpan time.Duration
-	l        sync.Mutex
+	cache ICache
+	Name  string
+	Datas []*TableData
+	TTL   time.Duration
+	l     sync.Mutex
 }
 
 type TableData struct {
@@ -20,14 +19,15 @@ type TableData struct {
 	Data interface{}
 }
 
-func NewCacheTable() *Table {
+func NewTable(cache ICache) *Table {
 	return &Table{
+		cache: cache,
 	}
 }
 
-func (t *Table) Create(name string, lifeSpan time.Duration) *Table {
+func (t *Table) Create(name string, ttl time.Duration) *Table {
 	t.Name = name
-	t.LifeSpan = lifeSpan
+	t.TTL = ttl
 
 	return t
 }
@@ -39,32 +39,31 @@ func (t *Table) Save(forces ...bool) {
 		isForce = forces[0]
 	}
 
-	if Instance().Exists(t.Name) {
+	if t.cache.Exists(t.Name) {
 		if !isForce {
 			return
 		}
 	}
 
-	Add(t.Name, t.LifeSpan, t.Datas)
+	t.cache.Set(t.Name, t.Datas, t.TTL)
 }
 
 func (t *Table) Table(name string) (*Table, error) {
-	var table *cache2go.CacheItem
+	var table interface{}
 	var datas []*TableData
 	var err error
 
-	table, err = Value(name)
+	table, err = t.cache.Get(name)
 
 	if err != nil {
 		return nil, err
 	}
 
-	datas = table.Data().([]*TableData)
+	datas = table.([]*TableData)
 
 	return &Table{
-		Name:     table.Key().(string),
-		LifeSpan: table.LifeSpan(),
-		Datas:    datas,
+		Name:  name,
+		Datas: datas,
 	}, nil
 }
 
@@ -73,6 +72,7 @@ func (t *Table) TableIf(name string, f func(*Table)) bool {
 	var err error
 
 	table, err = t.Table(name)
+	table.cache = t.cache
 
 	if err == nil {
 		f(table)
@@ -83,7 +83,7 @@ func (t *Table) TableIf(name string, f func(*Table)) bool {
 	return false
 }
 
-func (t *Table) Add(key interface{}, data interface{}) {
+func (t *Table) Set(key interface{}, data interface{}) {
 	t.l.Lock()
 	defer t.l.Unlock()
 
