@@ -60,13 +60,19 @@ type Cache struct {
 	ICache
 }
 
-func (c *Cache) GetAndSet(key string, fn func() interface{}, ttl time.Duration) (interface{}, error) {
+func (c *Cache) GetAndSet(key string, fn func() (interface{}, error), ttl time.Duration) (interface{}, error) {
 	if c.Exists(key) {
 		return c.Get(key)
 	}
 
-	var data = fn()
 	var err error
+	var data interface{}
+
+	data, err = fn()
+
+	if err != nil {
+		return nil, err
+	}
 
 	err = c.Set(key, data, ttl)
 
