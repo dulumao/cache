@@ -13,11 +13,14 @@ import (
 func TestCreate(t *testing.T) {
 	var err error
 
-	c, _ := Use(drivers.DriverBoltdb, &options.Options{
-		Bboltdb: &options.Bboltdb{
-			Path: "cache.db",
-			Mode: 0666,
-		},
+	//c, _ := Use(drivers.DriverBoltdb, &options.Options{
+	//	Bboltdb: &options.Bboltdb{
+	//		Path: "cache.db",
+	//		Mode: 0666,
+	//	},
+	//})
+	c, err := Use(drivers.DriverCache2go, &options.Options{
+		Name: "cache",
 	})
 
 	err = c.Set("k1", "v1", 1*time.Second)
@@ -38,4 +41,30 @@ func TestCreate(t *testing.T) {
 
 	spew.Dump(c.Exists("k1"))
 	spew.Dump(c.MustGet("k2"))
+}
+
+func TestGetAndSet(t *testing.T) {
+	var err error
+
+	c, err := Use(drivers.DriverCache2go, &options.Options{
+		Name: "cache",
+	})
+
+	spew.Dump(c)
+
+	var k4 interface{}
+
+	k4, err = c.GetAndSet("k4", func() interface{} {
+		return "k4 value"
+	}, 1*time.Second)
+
+	if err != nil {
+		panic(err)
+	}
+
+	spew.Dump(k4)
+
+	//time.Sleep(2 * time.Second)
+
+	spew.Dump(c.Exists("k4"))
 }

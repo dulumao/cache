@@ -56,22 +56,52 @@ type ICache interface {
 	Close() error
 }
 
-func Use(driver string, ops *options.Options) (ICache,error) {
+type Cache struct {
+	ICache
+}
+
+func (c *Cache) GetAndSet(key string, fn func() interface{}, ttl time.Duration) (interface{}, error) {
+	if c.Exists(key) {
+		return c.Get(key)
+	}
+
+	var data = fn()
+	var err error
+
+	err = c.Set(key, data, ttl)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return data, nil
+}
+
+func Use(driver string, ops *options.Options) (*Cache, error) {
 	if ops.Name == "" {
 		ops.Name = "cache"
 	}
 
+	var c = new(Cache)
+	var err error
+
 	if driver == drivers.DriverCache2go {
-		return cache2go.New(ops)
+		c.ICache, err = cache2go.New(ops)
+
+		return c, err
 	}
 
 	if driver == drivers.DriverRedis {
-		return redis.New(ops)
+		c.ICache, err = redis.New(ops)
+
+		return c, err
 	}
 
 	if driver == drivers.DriverBoltdb {
-		return boltdb.New(ops)
+		c.ICache, err = boltdb.New(ops)
+
+		return c, err
 	}
 
-	return nil,errors.New("driver error")
+	return nil, errors.New("driver error")
 }
