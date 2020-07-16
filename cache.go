@@ -61,7 +61,7 @@ type Cache struct {
 }
 
 
-// demo
+// demo1
 //func GetMember(db sqlingo.Database, id int64) (*DtbMemberModel, error) {
 //	var err error
 //	var out interface{}
@@ -88,6 +88,43 @@ type Cache struct {
 //	}
 //
 //	return out.(*DtbMemberModel), err
+//}
+
+// demo2
+//func GetMember2(db sqlingo.Database, id int64, out interface{}) error {
+//	var err error
+//	var data interface{}
+//
+//	cacheName := fmt.Sprintf("DtbMember:ID:%d", id)
+//
+//	data, err = cache.Instance().GetAndSet(cacheName, func() (interface{}, error) {
+//		println("set")
+//
+//		var err error
+//		var member DtbMemberModel
+//
+//		if _, err = db.SelectFrom(DtbMember).
+//			Where(DtbMember.Id.Equals(id)).
+//			FetchFirst(&member); err != nil {
+//			return nil, err
+//		}
+//
+//		return &member, nil
+//	}, 1*time.Second)
+//
+//	if err != nil {
+//		return err
+//	}
+//
+//	v := reflect.ValueOf(out)
+//
+//	if v.Kind() != reflect.Ptr {
+//		panic("out must be a pointer")
+//	}
+//
+//	v.Elem().Set(reflect.ValueOf(data).Elem())
+//
+//	return err
 //}
 
 func (c *Cache) GetAndSet(key string, fn func() (interface{}, error), ttl time.Duration) (interface{}, error) {
