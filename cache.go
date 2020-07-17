@@ -7,6 +7,7 @@ import (
 	"github.com/dulumao/cache/drivers"
 	"github.com/dulumao/cache/drivers/boltdb"
 	"github.com/dulumao/cache/drivers/cache2go"
+	"github.com/dulumao/cache/drivers/lru"
 	"github.com/dulumao/cache/drivers/redis"
 	"github.com/dulumao/cache/options"
 )
@@ -171,6 +172,12 @@ func Use(driver string, ops *options.Options) (*Cache, error) {
 
 	if driver == drivers.DriverBoltdb {
 		c.cache, err = boltdb.New(ops)
+
+		return c, err
+	}
+
+	if driver == drivers.DriverLru {
+		c.cache, err = lru.New(ops)
 
 		return c, err
 	}

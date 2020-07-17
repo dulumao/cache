@@ -11,10 +11,15 @@ type Options struct {
 	Name    string
 	Redis   *redis.Options
 	Bboltdb *Bboltdb
+	Lru     *Lru
 }
 
 type Bboltdb struct {
 	Path    string
 	Mode    os.FileMode
 	Options *bbolt.Options
+}
+
+type Lru struct {
+	Size int
 }
