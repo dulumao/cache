@@ -7,7 +7,7 @@ import (
 )
 
 type Table struct {
-	cache ICache
+	cache cache
 	Name  string
 	Datas []*TableData
 	TTL   time.Duration
@@ -19,7 +19,7 @@ type TableData struct {
 	Data interface{}
 }
 
-func NewTable(cache ICache) *Table {
+func NewTable(cache cache) *Table {
 	return &Table{
 		cache: cache,
 	}

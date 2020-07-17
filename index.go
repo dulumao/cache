@@ -7,12 +7,12 @@ import (
 )
 
 type Index struct {
-	c    ICache
+	c    cache
 	keys []string
 	l    sync.Mutex
 }
 
-func NewIndex(c ICache) *Index {
+func NewIndex(c cache) *Index {
 	return &Index{
 		keys: make([]string, 0),
 		c:    c,

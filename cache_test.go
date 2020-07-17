@@ -54,8 +54,8 @@ func TestGetAndSet(t *testing.T) {
 
 	var k4 interface{}
 
-	k4, err = c.GetAndSet("k4", func() interface{} {
-		return "k4 value"
+	k4, err = c.GetAndSet("k4", func() (interface{}, error) {
+		return "k4 value", nil
 	}, 1*time.Second)
 
 	if err != nil {

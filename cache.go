@@ -44,7 +44,7 @@ const (
 	OneWeek = 604800 * time.Second
 )
 
-type ICache interface {
+type cache interface {
 	Get(key string) (data interface{}, err error)
 	MustGet(key string) (data interface{})
 	Set(key string, data interface{}, ttl time.Duration) error
@@ -57,9 +57,8 @@ type ICache interface {
 }
 
 type Cache struct {
-	ICache
+	cache
 }
-
 
 // demo1
 //func GetMember(db sqlingo.Database, id int64) (*DtbMemberModel, error) {
@@ -159,19 +158,19 @@ func Use(driver string, ops *options.Options) (*Cache, error) {
 	var err error
 
 	if driver == drivers.DriverCache2go {
-		c.ICache, err = cache2go.New(ops)
+		c.cache, err = cache2go.New(ops)
 
 		return c, err
 	}
 
 	if driver == drivers.DriverRedis {
-		c.ICache, err = redis.New(ops)
+		c.cache, err = redis.New(ops)
 
 		return c, err
 	}
 
 	if driver == drivers.DriverBoltdb {
-		c.ICache, err = boltdb.New(ops)
+		c.cache, err = boltdb.New(ops)
 
 		return c, err
 	}
