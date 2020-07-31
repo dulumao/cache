@@ -93,3 +93,31 @@ func TestLru(t *testing.T) {
 	spew.Dump(c.Exists("k1"))
 	spew.Dump(c.MustGet("k2"))
 }
+
+func TestDelete(t *testing.T) {
+	var err error
+
+	c, err := Use(drivers.DriverCache2go, &options.Options{
+		Name: "cache",
+	})
+
+	if err != nil {
+		panic(err)
+	}
+
+	var k4 interface{}
+
+	_ = k4
+
+	//c.Set("k4", "asdad", 10*time.Second)
+
+	k4, err = c.GetAndSet("k4", func() (interface{}, error) {
+		return "k4 value", nil
+	}, 10*time.Second)
+
+	c.Delete("k4")
+
+	d, _ := c.Get("k4")
+
+	spew.Dump(d)
+}

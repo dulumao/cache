@@ -55,6 +55,8 @@ func (c *Cache) Exists(key string) bool {
 }
 
 func (c *Cache) Delete(key string) bool {
+	c.c.Delete(key)
+
 	return true
 }
 
